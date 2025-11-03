@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release-brew-rpms
+  namespace: chuazhan-tenant
+imagePullSecrets:
+  - name: redhat-registry-cred
+secrets:
+  - name: redhat-registry-cred
+

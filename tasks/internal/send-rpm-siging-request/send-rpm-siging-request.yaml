@@ -1,0 +1,49 @@
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: send-rpm-siging-request
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/tags: release
+spec:
+  description: |-
+    Tekton task to send signing request to signing server.
+    - This task is meant to be used in an internal pipeline that can be triggered frequently
+      and is expected to complete as quickly as possible.
+  params:
+    - description: A docker image of operator-pipeline-images for the steps to run in
+      name: pipeline_image
+      default: "images.paas.redhat.com/chuazhan/sign-client-image:f73423f5ccc5386890497fafa4884c1d47c9afe934055cd6c28277eb171ad8a8"
+      type: string
+  volumes:
+    - name: secret-volume
+      secret:
+        secretName: "konflux-release-signing-stage-sa"
+  steps:
+    - name: send-signing-request
+      image: "images.paas.redhat.com/exd-sp-guild-errata/koji-import-utils:sign-rpm"
+      computeResources:
+        limits:
+          memory: 128Mi
+        requests:
+          memory: 128Mi
+          cpu: 100m
+      workingDir: "$(workspaces.data.path)"
+      script: |
+        #!/usr/bin/env /bin/bash
+        set -x
+
+        base64 --decode /etc/secret/keytab > ./konflux-release-signing-stage.keytab
+
+        rh-signing-client-stage --keytab ./konflux-release-signing-stage.keytab --list-keys
+
+        curl -L -O https://download-01.beak-001.prod.iad2.dc.redhat.com/brewroot/vol/rhel-10/packages/qatlib/24.09.0/3.el10,draft_3849854/x86_64/qatlib-24.09.0-3.el10.x86_64.rpm
+        
+        rh-signing-client-stage --key devkey1 qatlib-24.09.0-3.el10.x86_64.rpm
+      volumeMounts:
+        - mountPath: /etc/secret
+          name: secret-volume
+          readOnly: true
+  workspaces:
+    - name: data

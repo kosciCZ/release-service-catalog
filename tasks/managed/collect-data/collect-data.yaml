@@ -123,6 +123,9 @@ spec:
         value: "$(params.orasOptions)"
       - name: "DEBUG"
         value: "$(params.trustedArtifactsDebug)"
+#  workspaces:
+#    - name: registry-cred
+#      description: "Secret containing registry credentials"
   steps:
     - name: collect-data
       image: quay.io/konflux-ci/release-service-utils:c896b10f793954cc27ff4b9e8df23563df64359f
@@ -354,3 +357,7 @@ spec:
           value: $(params.dataDir)
         - name: sourceDataArtifact
           value: $(results.sourceDataArtifact.path)
+#      when:
+#        - input: $(params.dataDir)
+#          operator: in
+#          values: ["promote"]

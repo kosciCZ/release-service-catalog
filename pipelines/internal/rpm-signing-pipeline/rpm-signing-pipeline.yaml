@@ -1,0 +1,51 @@
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: rpm-signing-pipeline
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/tags: release
+spec:
+  description: |-
+    Tekton pipeline for rpm signing. It is meant to be used by the rh-sign-rpm task, not as a standalone managed
+    pipeline.
+  params:
+    - name: pipeline_image
+      description: An image with rh-siging-client needed for the signing
+      default: images.paas.redhat.com/repository/chuazhan/sign-client-image:f73423f5ccc5386890497fafa4884c1d47c9afe934055cd6c28277eb171ad8a8
+      type: string
+    - name: requester
+      description: Name of the user that requested the signing, for auditing purposes
+      type: string
+    - name: component
+      description: Name of the component which will be signed
+      type: string
+    - name: taskGitUrl
+      description: The url to the git repo where the release-service-catalog tasks to be used are stored
+      default: https://github.com/chuazhan/release-service-catalog.git
+      type: string
+    - name: taskGitRevision
+      description: The revision in the taskGitUrl repo to be used
+      type: string
+  workspaces:
+    - name: pipeline
+  tasks:
+    - name: send-rpm-siging-request
+      retries: 5
+      taskRef:
+        resolver: "git"
+        params:
+          - name: url
+            value: $(params.taskGitUrl)
+          - name: revision
+            value: $(params.taskGitRevision)
+          - name: pathInRepo
+            value: tasks/internal/send-rpm-siging-request/send-rpm-siging-request.yaml
+      params:
+        - name: requester
+          value: $(params.requester)
+      workspaces:
+        - name: data
+          workspace: pipeline
+          subPath: signing

@@ -1,0 +1,195 @@
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: rh-sign-rpm
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/tags: sign-rpm
+spec:
+  description: |-
+    Tekton task to create internalrequests or pipelineruns to sign rpms
+  params:
+    - name: snapshotPath
+      type: string
+      description: |
+        Path to the JSON file of the mapped Snapshot spec in the data workspace
+    - name: dataPath
+      type: string
+      description: |
+        Path to the JSON file of the merged data to use in the data workspace
+    - name: releasePlanAdmissionPath
+      description: Path to the JSON string of the releasePlanAdmission in the data workspace
+      type: string
+    - name: signSecret
+      type: string
+      description: |
+        The secret that is used for login signing server
+    - name: ociStorage
+      description: The OCI repository where the Trusted Artifacts are stored
+      type: string
+      default: "empty"
+    - name: sourceDataArtifact
+      type: string
+      description: Location of trusted artifacts to be used to populate data directory
+      default: ""
+    - name: ociArtifactExpiresAfter
+      description: Expiration date for the trusted artifacts created in the
+        OCI repository. An empty string means the artifacts do not expire
+      type: string
+      default: "1d"
+    - name: trustedArtifactsDebug
+      description: Flag to enable debug logging in trusted artifacts. Set to a non-empty string to enable
+      type: string
+      default: ""
+    - name: orasOptions
+      description: oras options to pass to Trusted Artifacts calls
+      type: string
+      default: ""
+    - name: dataDir
+      description: The location where data will be stored
+      type: string
+      default: /var/workdir/release
+    - name: taskGitUrl
+      type: string
+      description: The url to the git repo where the release-service-catalog tasks and stepactions to be used are stored
+    - name: taskGitRevision
+      type: string
+      description: The revision in the taskGitUrl repo to be used
+  results:
+    - name: sourceDataArtifact
+      type: string
+      description: Produced trusted data artifact
+  volumes:
+    - name: secret-volume
+      secret:
+        secretName: $(params.pushSecret)
+    - name: workdir
+      emptyDir: {}
+  stepTemplate:
+    volumeMounts:
+      - mountPath: /var/workdir
+        name: workdir
+    env:
+      - name: IMAGE_EXPIRES_AFTER
+        value: $(params.ociArtifactExpiresAfter)
+      - name: "ORAS_OPTIONS"
+        value: "$(params.orasOptions)"
+      - name: "DEBUG"
+        value: "$(params.trustedArtifactsDebug)"
+    securityContext:
+      runAsUser: 1001
+  steps:
+    - name: use-trusted-artifact
+      computeResources:
+        limits:
+          memory: 64Mi
+        requests:
+          memory: 64Mi
+          cpu: 30m
+      ref:
+        resolver: "git"
+        params:
+          - name: url
+            value: $(params.taskGitUrl)
+          - name: revision
+            value: $(params.taskGitRevision)
+          - name: pathInRepo
+            value: stepactions/use-trusted-artifact/use-trusted-artifact.yaml
+      params:
+        - name: workDir
+          value: $(params.dataDir)
+        - name: sourceDataArtifact
+          value: $(params.sourceDataArtifact)
+    - name: send-signing-request
+      # The pipelineImage will be fetching from get-secrets task with koji installed there
+      # image: "$(params.pipelineImage)"
+      image: quay.io/konflux-ci/release-service-utils:cee1fd0191e750b0736d8197701d91ce2f308e03
+      computeResources:
+        limits:
+          memory: 512Mi
+        requests:
+          memory: 512Mi
+          cpu: 500m
+      env:
+        - name: SNAPSHOT_SPEC_FILE
+          value: $(params.dataDir)/$(params.snapshotPath)
+        - name: DATA_FILE
+          value: $(params.dataDir)/$(params.dataPath)
+      script: |
+        #!/usr/bin/env bash
+        set -ex
+
+        if [ ! -f "${SNAPSHOT_SPEC_FILE}" ] ; then
+            echo "No valid snapshot file was provided."
+            exit 1
+        fi
+
+        if [ ! -f "${DATA_FILE}" ] ; then
+            echo "No data JSON was provided."
+            exit 1
+        fi
+
+        RPA_FILE="$(params.dataDir)/$(params.releasePlanAdmissionPath)"
+        if [ ! -f "${RPA_FILE}" ] ; then
+            echo "No valid rpa file was provided."
+            exit 1
+        fi
+        PRINCIPAL=$(jq --exit-status -r '.pushOptions.pushKeytab.principal' "${DATA_FILE}")
+        KEYTAB_FILE=$(jq --exit-status -r '.pushOptions.pushKeytab.name' "${DATA_FILE}")
+
+        SNAPSHOT_PATH=$(params.dataDir)/$(params.snapshotPath)
+        REQUESTTYPE=$(jq -r '.requestType // "internal-request"' "${DATA_FILE}")
+        service_account_name=$(jq -r '.spec.pipeline.serviceAccountName // "release-service-account"' "${RPA_FILE}")
+        if [ "${REQUESTTYPE}" == "internal-pipelinerun" ] ; then
+          requestType=internal-pipelinerun
+          EXTRA_ARGS=(
+          --service-account "${service_account_name}"
+          )
+        else
+          requestType=internal-request
+          EXTRA_ARGS=()
+        fi
+        request=$(jq -r '.sign.request // "rpm-signing-pipeline"' "${DATA_FILE}")
+
+        # Use the first component for testing
+        component=$(jq -c '.components[0]' "${SNAPSHOT_PATH}")
+
+        IR_FILE="$(params.dataDir)/$(context.task.name)/ir-result.txt"
+        mkdir -p "$(dirname "$IR_FILE")"
+        bash -x /home/utils/internal-request \
+          --pipeline "rpm-signing-pipeline" \
+          -p pipeline_image="images.paas.redhat.com/chuazhan/sign-client-image:latest" \
+          -p requester="Chuang Zhang" \
+          -p application="rhel-10" \
+          -p component="${component}" \
+          -p origin="rhel-osci-tenant" \
+          -p taskGitUrl="https://github.com/chuazhan/release-service-catalog.git" \
+          -p taskGitRevision="staging" \
+          --pipeline-timeout "00h30m00s" --task-timeout "00h25m00s" | tee "$IR_FILE"
+        internalRequest=$(awk -F"'" '/created/ { print $2 }' "$IR_FILE")
+        echo "done ${internalRequest}"
+        cat $IR_FILE
+        ls -l $IR_FILE
+#
+#        results=$(kubectl get internalrequest "$internalRequest" -o=jsonpath='{.status.results}')
+#        internalRequestPipelineRunName="$(jq -jr '.internalRequestPipelineRunName // ""' <<< "${results}")"
+#        internalRequestTaskRunName="$(jq -jr '.internalRequestTaskRunName // ""' <<< "${results}")"
+#
+#        echo "** internalRequestPipelineRunName: ${internalRequestPipelineRunName}"
+#        echo "** internalRequestTaskRunName: ${internalRequestTaskRunName}"
+##        cd "$(params.dataDir)/$(dirname "$(params.snapshotPath)")"
+##
+##        # The secrets are base64 when it is mounted as remote secrets otherwise we can directly use.
+##        if [ -f /etc/secret/base64_keytab ]; then
+##            set +x  # Avoid leaking the secret
+##            base64 -d /etc/secret/base64_keytab > ./"$KEYTAB_FILE"
+##            set -x
+##        else
+##            cp /etc/secret/"$KEYTAB_FILE" ./"$KEYTAB_FILE"
+##        fi
+
+#      volumeMounts:
+#        - mountPath: /etc/secret
+#          name: secret-volume
+#          readOnly: true
