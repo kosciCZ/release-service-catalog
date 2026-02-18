@@ -23,28 +23,9 @@ function internal-request() {
   IR_NAME=$(awk -F"'" '/created/ { print $2 }' $(params.dataDir)/ir-output-${PIPELINE_UID:-default}.tmp)
   
   if [ -z "$IR_NAME" ]; then
-      # Poll for the new IR to appear (wait up to 10 seconds)
+      # Fallback: try to find IR with matching pipeline UID label
       if [ -n "$PIPELINE_UID" ]; then
-        echo "Waiting for InternalRequest to be created for pipeline UID: ${PIPELINE_UID}..."
-        for attempt in {1..20}; do
-          sleep 0.5
-          local ir_count_after
-          ir_count_after=$(kubectl get internalrequest \
-            -l "internal-services.appstudio.openshift.io/pipelinerun-uid=${PIPELINE_UID}" \
-            --no-headers 2>/dev/null | wc -l)
-          
-          if [ "$ir_count_after" -gt "$ir_count_before" ]; then
-            # New IR appeared, get the most recent one for this pipeline
-            IR_NAME=$(kubectl get internalrequest \
-              -l "internal-services.appstudio.openshift.io/pipelinerun-uid=${PIPELINE_UID}" \
-              --no-headers -o custom-columns=":metadata.name" \
-              --sort-by=.metadata.creationTimestamp 2>/dev/null | tail -1)
-            if [ -n "$IR_NAME" ]; then
-              echo "Found InternalRequest: $IR_NAME (attempt $attempt)"
-              break
-            fi
-          fi
-        done
+        IR_NAME=$(kubectl get internalrequest -l "internal-services.appstudio.openshift.io/pipelinerun-uid=${PIPELINE_UID}" --no-headers -o custom-columns=":metadata.name" --sort-by=.metadata.creationTimestamp | tail -1)
       fi
       
       # Final fallback to the original method
@@ -65,7 +46,7 @@ function internal-request() {
   if [[ "$*" == *"fbcFragments="*"fail.io"* ]]; then
       set_ir_status $IR_NAME 1
   else
-      set_ir_status "$IR_NAME" 0
+      set_ir_status $IR_NAME 0
   fi
 }
 
