@@ -424,12 +424,6 @@ spec:
           value: 1800
         - name: pipelineRunUid
           value: $(context.pipelineRun.uid)
-        - name: pyxisServer
-          value: $(tasks.collect-task-params.results.extractedValues[3])
-        - name: pyxisSecret
-          value: $(tasks.collect-task-params.results.extractedValues[2])
-        - name: signRegistryAccessPath
-          value: $(tasks.publish-pyxis-repository.results.signRegistryAccessPath)
         - name: ociStorage
           value: $(params.ociStorage)
         - name: sourceDataArtifact
