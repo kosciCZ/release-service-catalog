@@ -1,0 +1,95 @@
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: direct-signing-pipeline
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/tags: release
+spec:
+  description: |-
+    Tekton pipeline for direct container signing. It is meant to be used by the rh-sign-image task, not as a standalone
+    managed pipeline. This pipeline bypasses UMB/robosignatory and calls the signing client directly.
+  params:
+    - name: manifest_digests
+      description: Space separated manifest digest for the signed content, usually in the format sha256:xxx
+      type: string
+    - name: references
+      description: >-
+        Space separated docker reference for the signed content,
+        e.g. registry.redhat.io/redhat/community-operator-index:v4.9
+      type: string
+    - name: requester
+      description: Name of the user that requested the signing, for auditing purposes
+      type: string
+    - name: signing_key_names
+      description: Space separated list of signing key names to use
+      type: string
+    - name: pipeline_image
+      description: Signing client image to use for the direct-sign step
+      default: "images.paas.redhat.com/chuazhan/sign-client-image:latest"
+      type: string
+    - name: config_map_name
+      description: A config map name with configuration
+      default: hacbs-signing-pipeline-config
+      type: string
+    - name: taskGitUrl
+      description: The url to the git repo where the release-service-catalog tasks to be used are stored
+      default: https://github.com/konflux-ci/release-service-catalog.git
+      type: string
+    - name: taskGitRevision
+      description: The revision in the taskGitUrl repo to be used
+      type: string
+  workspaces:
+    - name: pipeline
+  tasks:
+    - name: collect-signing-params
+      retries: 5
+      taskRef:
+        resolver: "git"
+        params:
+          - name: url
+            value: $(params.taskGitUrl)
+          - name: revision
+            value: $(params.taskGitRevision)
+          - name: pathInRepo
+            value: tasks/internal/collect-simple-signing-params/collect-simple-signing-params.yaml
+      params:
+        - name: config_map_name
+          value: $(params.config_map_name)
+    - name: direct-sign-and-upload
+      retries: 2
+      taskRef:
+        resolver: "git"
+        params:
+          - name: url
+            value: $(params.taskGitUrl)
+          - name: revision
+            value: $(params.taskGitRevision)
+          - name: pathInRepo
+            value: tasks/internal/direct-sign-and-upload/direct-sign-and-upload.yaml
+      params:
+        - name: manifest_digests
+          value: $(params.manifest_digests)
+        - name: references
+          value: $(params.references)
+        - name: requester
+          value: $(params.requester)
+        - name: sig_key_names
+          value: $(params.signing_key_names)
+        - name: pipeline_image
+          value: $(params.pipeline_image)
+        - name: pyxis_ssl_cert_secret_name
+          value: $(tasks.collect-signing-params.results.pyxis_ssl_cert_secret_name)
+        - name: pyxis_ssl_cert_file_name
+          value: $(tasks.collect-signing-params.results.pyxis_ssl_cert_file_name)
+        - name: pyxis_ssl_key_file_name
+          value: $(tasks.collect-signing-params.results.pyxis_ssl_key_file_name)
+        - name: pyxis_url
+          value: $(tasks.collect-signing-params.results.pyxis_url)
+      workspaces:
+        - name: data
+          workspace: pipeline
+          subPath: signing
+      runAfter:
+        - collect-signing-params
