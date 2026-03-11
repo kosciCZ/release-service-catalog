@@ -211,7 +211,7 @@ spec:
           requestType=internal-request
           EXTRA_ARGS=()
         fi
-        request=$(jq -r '.sign.request // "simple-signing-pipeline"' "${DATA_FILE}")
+        request=$(jq -r '.sign.request // "direct-signing-pipeline"' "${DATA_FILE}")
 
         default_pipeline_image="quay.io/redhat-isv/operator-pipelines-images:released"
 
