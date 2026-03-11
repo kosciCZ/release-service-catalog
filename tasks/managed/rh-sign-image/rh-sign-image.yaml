@@ -250,7 +250,6 @@ spec:
               -p references="${references_batch}" \
               -p signing_key_names="${SIG_KEY_NAMES}" \
               -p manifest_digests="${digests_batch}" \
-              -p config_map_name="${config_map_name}" \
               -p requester="$(params.requester)" \
               -p taskGitUrl="$(params.taskGitUrl)" \
               -p taskGitRevision="$(params.taskGitRevision)" \
@@ -276,7 +275,6 @@ spec:
             -p references="${references_batch}" \
             -p signing_key_names="${SIG_KEY_NAMES}" \
             -p manifest_digests="${digests_batch}" \
-            -p config_map_name="${config_map_name}" \
             -p requester="$(params.requester)" \
             -p taskGitUrl="$(params.taskGitUrl)" \
             -p taskGitRevision="$(params.taskGitRevision)" \

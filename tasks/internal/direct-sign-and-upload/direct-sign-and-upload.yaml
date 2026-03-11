@@ -34,19 +34,6 @@ spec:
       description: Signing client image to use for the direct-sign step
       type: string
       default: "images.paas.redhat.com/chuazhan/sign-client-image:latest"
-    - name: pyxis_ssl_cert_secret_name
-      description: Kubernetes secret name that contains the Pyxis SSL files
-      type: string
-    - name: pyxis_ssl_cert_file_name
-      description: The key within the Kubernetes secret that contains the Pyxis SSL cert
-      type: string
-    - name: pyxis_ssl_key_file_name
-      description: The key within the Kubernetes secret that contains the Pyxis SSL key
-      type: string
-    - name: pyxis_url
-      description: Pyxis instance to upload the signature to
-      type: string
-      default: https://pyxis.engineering.redhat.com
     - name: caTrustConfigMapName
       description: The name of the ConfigMap to read CA bundle data from
       type: string
@@ -59,9 +46,6 @@ spec:
     - name: secret-volume
       secret:
         secretName: konflux-release-signing-stage-sa
-    - name: pyxis-ssl-cert-secret
-      secret:
-        secretName: $(params.pyxis_ssl_cert_secret_name)
     - name: trusted-ca
       configMap:
         name: $(params.caTrustConfigMapName)
@@ -109,71 +93,5 @@ spec:
 
         echo "=== Listing available signing keys ==="
         rh-signing-client-stage --keytab ./signing.keytab --list-keys
-
-        read -r -a reference_array <<< "${references}"
-        read -r -a digest_array <<< "${manifest_digests}"
-        read -r -a key_array <<< "${sig_key_names}"
-
-        if [ "${#reference_array[@]}" -ne "${#digest_array[@]}" ]; then
-          echo "ERROR: Number of references (${#reference_array[@]}) does not match" \
-            "number of digests (${#digest_array[@]})"
-          exit 1
-        fi
-
-        echo "=== Signing ${#reference_array[@]} image(s) ==="
-        for key_name in "${key_array[@]}"; do
-          echo "-- Using signing key: ${key_name}"
-          for i in "${!reference_array[@]}"; do
-            ref="${reference_array[$i]}"
-            digest="${digest_array[$i]}"
-            artifact="${ref}@${digest}"
-            echo "Signing artifact: ${artifact} with key ${key_name}"
-            rh-signing-client-stage \
-              --keytab ./signing.keytab \
-              --key "${key_name}" \
-              "${artifact}"
-          done
-        done
-
-        echo "=== Signing complete ==="
-
-    - name: upload-signature
-      image: "quay.io/konflux-ci/release-service-utils:13e379cb498293f8f7b8b9c84c57d9e8ab141be2"
-      securityContext:
-        runAsUser: 1001
-      computeResources:
-        limits:
-          memory: 128Mi
-          cpu: 100m
-        requests:
-          memory: 128Mi
-          cpu: 100m
-      workingDir: "$(workspaces.data.path)"
-      volumeMounts:
-        - name: pyxis-ssl-cert-secret
-          mountPath: /mnt/pyxis_ssl_cert_secret
-          readOnly: true
-      env:
-        - name: PYXIS_CERT_PATH
-          value: "/tmp/pyxisCert"
-        - name: PYXIS_KEY_PATH
-          value: "/tmp/pyxisKey"
-        - name: pyxis_url
-          value: $(params.pyxis_url)
-      script: |
-        #!/usr/bin/env bash
-        set -ex
-
-        PyxisCert="$(cat "/mnt/pyxis_ssl_cert_secret/$(params.pyxis_ssl_cert_file_name)")"
-        PyxisKey="$(cat "/mnt/pyxis_ssl_cert_secret/$(params.pyxis_ssl_key_file_name)")"
-
-        echo "${PyxisCert:?}" > "${PYXIS_CERT_PATH}"
-        echo "${PyxisKey:?}" > "${PYXIS_KEY_PATH}"
-
-        pubtools-pyxis-upload-signatures \
-          --pyxis-server "${pyxis_url}" \
-          --pyxis-ssl-crtfile "${PYXIS_CERT_PATH}" \
-          --pyxis-ssl-keyfile "${PYXIS_KEY_PATH}" \
-          --signatures @"signing_response.json"
   workspaces:
     - name: data

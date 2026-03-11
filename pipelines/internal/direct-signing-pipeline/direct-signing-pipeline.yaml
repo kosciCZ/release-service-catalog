@@ -29,10 +29,6 @@ spec:
       description: Signing client image to use for the direct-sign step
       default: "images.paas.redhat.com/chuazhan/sign-client-image:latest"
       type: string
-    - name: config_map_name
-      description: A config map name with configuration
-      default: hacbs-signing-pipeline-config
-      type: string
     - name: taskGitUrl
       description: The url to the git repo where the release-service-catalog tasks to be used are stored
       default: https://github.com/konflux-ci/release-service-catalog.git
@@ -43,20 +39,6 @@ spec:
   workspaces:
     - name: pipeline
   tasks:
-    - name: collect-signing-params
-      retries: 5
-      taskRef:
-        resolver: "git"
-        params:
-          - name: url
-            value: $(params.taskGitUrl)
-          - name: revision
-            value: $(params.taskGitRevision)
-          - name: pathInRepo
-            value: tasks/internal/collect-simple-signing-params/collect-simple-signing-params.yaml
-      params:
-        - name: config_map_name
-          value: $(params.config_map_name)
     - name: direct-sign-and-upload
       retries: 2
       taskRef:
@@ -79,17 +61,7 @@ spec:
           value: $(params.signing_key_names)
         - name: pipeline_image
           value: $(params.pipeline_image)
-        - name: pyxis_ssl_cert_secret_name
-          value: $(tasks.collect-signing-params.results.pyxis_ssl_cert_secret_name)
-        - name: pyxis_ssl_cert_file_name
-          value: $(tasks.collect-signing-params.results.pyxis_ssl_cert_file_name)
-        - name: pyxis_ssl_key_file_name
-          value: $(tasks.collect-signing-params.results.pyxis_ssl_key_file_name)
-        - name: pyxis_url
-          value: $(tasks.collect-signing-params.results.pyxis_url)
       workspaces:
         - name: data
           workspace: pipeline
           subPath: signing
-      runAfter:
-        - collect-signing-params
