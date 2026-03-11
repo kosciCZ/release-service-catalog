@@ -1,0 +1,100 @@
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: direct-sign-and-upload
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/tags: release
+spec:
+  description: |-
+    Tekton task to directly sign container images using rh-signing-client
+    and upload signatures to Pyxis.
+    - This task is meant to be used in an internal pipeline that can be triggered frequently
+      and is expected to complete as quickly as possible.
+  params:
+    - description: |
+        List of space separated manifest digests for the signed content, usually in the format sha256:xxx
+      name: manifest_digests
+      type: string
+    - description: Name of the user that requested the signing, for auditing purposes
+      name: requester
+      type: string
+    - description: |
+        List of space separated docker references for the signed content,
+        e.g. registry.com/ns/image:v4.9 registry.com/ns/image:v4.10
+      name: references
+      type: string
+    - description: Space separated signing key names that the content is signed with
+      name: sig_key_names
+      default: containerisvsign
+      type: string
+    - description: A docker image with rh-signing-client needed for the signing
+      name: pipeline_image
+      default: "images.paas.redhat.com/chuazhan/sign-client-image:latest"
+      type: string
+    - name: caTrustConfigMapName
+      type: string
+      description: The name of the ConfigMap to read CA bundle data from
+      default: trusted-ca
+    - name: caTrustConfigMapKey
+      type: string
+      description: The name of the key in the ConfigMap that contains the CA bundle data
+      default: ca-bundle.crt
+  volumes:
+    - name: secret-volume
+      secret:
+        secretName: "konflux-release-signing-stage-sa"
+    - name: trusted-ca
+      configMap:
+        name: $(params.caTrustConfigMapName)
+        items:
+          - key: $(params.caTrustConfigMapKey)
+            path: ca-bundle.crt
+        optional: true
+  stepTemplate:
+    volumeMounts:
+      - name: trusted-ca
+        mountPath: /mnt/trusted-ca
+        readOnly: true
+  steps:
+    - name: direct-sign
+      image: "$(params.pipeline_image)"
+      computeResources:
+        limits:
+          memory: 512Mi
+        requests:
+          memory: 512Mi
+          cpu: 200m
+      securityContext:
+        runAsUser: 1001
+      env:
+        - name: REFERENCES
+          value: $(params.references)
+        - name: MANIFEST_DIGESTS
+          value: $(params.manifest_digests)
+        - name: SIG_KEY_NAMES
+          value: $(params.sig_key_names)
+        - name: REQUESTER
+          value: $(params.requester)
+      volumeMounts:
+        - mountPath: /etc/secret
+          name: secret-volume
+          readOnly: true
+      script: |
+        #!/usr/bin/env bash
+        set -ex
+
+        # Decode keytab
+        base64 --decode /etc/secret/keytab > ./signing.keytab
+
+        # Authenticate and list available keys
+        rh-signing-client-stage --keytab ./signing.keytab --list-keys
+
+        echo "References: ${REFERENCES}"
+        echo "Manifest digests: ${MANIFEST_DIGESTS}"
+        echo "Signing key names: ${SIG_KEY_NAMES}"
+        echo "Requester: ${REQUESTER}"
+
+        # Clean up keytab
+        rm -f ./signing.keytab
