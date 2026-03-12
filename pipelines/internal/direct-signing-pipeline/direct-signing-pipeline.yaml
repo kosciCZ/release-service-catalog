@@ -28,7 +28,7 @@ spec:
       type: string
     - name: pipeline_image
       description: An image with rh-signing-client needed for the signing
-      default: "images.paas.redhat.com/chuazhan/sign-client-image:latest"
+      default: "quay.io/konflux-ci/signing:latest"
       type: string
     - name: config_map_name
       description: A config map name with configuration
