@@ -154,6 +154,17 @@ spec:
         #!/usr/bin/env bash
         set -ex
 
+        dump_output_logs() {
+          echo "=== Internal request output logs ==="
+          for f in /tmp/*-output.json; do
+            [ -f "$f" ] || continue
+            echo "--- ${f} ---"
+            cat "$f"
+            echo
+          done
+        }
+        trap dump_output_logs EXIT
+
         RUNNING_JOBS="\j" # Bash parameter for number of jobs currently running
         CONCURRENT_LIMIT=$(params.concurrentLimit)
         REQUEST_COUNT=0
