@@ -31,7 +31,7 @@ spec:
       type: string
     - description: A docker image with rh-signing-client needed for the signing
       name: pipeline_image
-      default: "images.paas.redhat.com/chuazhan/sign-client-image:latest"
+      default: "quay.io/konflux-ci/signing:latest"
       type: string
     - name: caTrustConfigMapName
       type: string
