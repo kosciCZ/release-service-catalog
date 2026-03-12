@@ -42,6 +42,9 @@ spec:
       description: The name of the key in the ConfigMap that contains the CA bundle data
       default: ca-bundle.crt
   volumes:
+    - name: secret-volume
+      secret:
+        secretName: "konflux-release-signing-stage-sa"
     - name: trusted-ca
       configMap:
         name: $(params.caTrustConfigMapName)
@@ -74,11 +77,24 @@ spec:
           value: $(params.sig_key_names)
         - name: REQUESTER
           value: $(params.requester)
+      volumeMounts:
+        - mountPath: /etc/secret
+          name: secret-volume
+          readOnly: true
       script: |
         #!/usr/bin/env bash
         set -ex
+
+        # Decode keytab
+        base64 --decode /etc/secret/keytab > ./signing.keytab
+
+        # Authenticate and list available keys
+        rh-signing-client-stage --keytab ./signing.keytab --list-keys
 
         echo "References: ${REFERENCES}"
         echo "Manifest digests: ${MANIFEST_DIGESTS}"
         echo "Signing key names: ${SIG_KEY_NAMES}"
         echo "Requester: ${REQUESTER}"
+
+        # Clean up keytab
+        rm -f ./signing.keytab
