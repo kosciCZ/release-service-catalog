@@ -402,7 +402,7 @@ spec:
         - rh-sign-image
     - name: rh-sign-image
       timeout: "6h00m0s"
-      retries: 3
+      retries: 0
       taskRef:
         resolver: "git"
         params:
