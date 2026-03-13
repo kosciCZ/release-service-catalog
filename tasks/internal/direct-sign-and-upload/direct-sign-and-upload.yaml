@@ -86,10 +86,10 @@ spec:
         set -ex
 
         # Decode keytab
-        base64 --decode /etc/secret/keytab > ./signing.keytab
+        base64 --decode /etc/secret/keytab > /tmp/signing.keytab
 
         # Authenticate and list available keys
-        rh-signing-client-stage --keytab ./signing.keytab --list-keys
+        rh-signing-client-stage --keytab /tmp/signing.keytab --list-keys
 
         echo "References: ${REFERENCES}"
         echo "Manifest digests: ${MANIFEST_DIGESTS}"
@@ -97,4 +97,4 @@ spec:
         echo "Requester: ${REQUESTER}"
 
         # Clean up keytab
-        rm -f ./signing.keytab
+        rm -f /tmp/signing.keytab
