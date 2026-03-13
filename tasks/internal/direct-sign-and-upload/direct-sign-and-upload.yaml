@@ -105,22 +105,11 @@ spec:
             ref="${refs[$i]}"
             digest="${digests[$i]}"
 
-            payload=$(jq -n \
-              --arg digest "$digest" \
-              --arg ref "$ref" \
-              '{
-                "critical": {
-                  "type": "atomic container signature",
-                  "image": {"docker-manifest-digest": $digest},
-                  "identity": {"docker-reference": $ref}
-                },
-                "optional": {
-                  "creator": "konflux"
-                }
-              }')
-
             echo "Signing ${ref} @ ${digest} with key ${sig_key}"
-            echo "${payload}" > /tmp/payload.json
+            printf '{"critical":{"type":"atomic container signature",' > /tmp/payload.json
+            printf '"image":{"docker-manifest-digest":"%s"},' "${digest}" >> /tmp/payload.json
+            printf '"identity":{"docker-reference":"%s"}},' "${ref}" >> /tmp/payload.json
+            printf '"optional":{"creator":"konflux"}}' >> /tmp/payload.json
             cat /tmp/payload.json
 
             rh-signing-client-stage \
