@@ -88,13 +88,53 @@ spec:
         # Decode keytab
         base64 --decode /etc/secret/keytab > /tmp/signing.keytab
 
-        # Authenticate and list available keys
-        rh-signing-client-stage --keytab /tmp/signing.keytab --list-keys
+        # List available keys
+        rh-signing-client --keytab /tmp/signing.keytab --list-keys
 
         echo "References: ${REFERENCES}"
         echo "Manifest digests: ${MANIFEST_DIGESTS}"
         echo "Signing key names: ${SIG_KEY_NAMES}"
         echo "Requester: ${REQUESTER}"
+
+        read -ra refs <<< "${REFERENCES}"
+        read -ra digests <<< "${MANIFEST_DIGESTS}"
+        read -ra keys <<< "${SIG_KEY_NAMES}"
+
+        for sig_key in "${keys[@]}"; do
+          for i in "${!refs[@]}"; do
+            ref="${refs[$i]}"
+            digest="${digests[$i]}"
+
+            payload=$(jq -n \
+              --arg digest "$digest" \
+              --arg ref "$ref" \
+              '{
+                "critical": {
+                  "type": "atomic container signature",
+                  "image": {"docker-manifest-digest": $digest},
+                  "identity": {"docker-reference": $ref}
+                },
+                "optional": {
+                  "creator": "konflux"
+                }
+              }')
+
+            echo "Signing ${ref} @ ${digest} with key ${sig_key}"
+            echo "${payload}" > /tmp/payload.json
+            cat /tmp/payload.json
+
+            rh-signing-client \
+              --keytab /tmp/signing.keytab \
+              --key-name "${sig_key}" \
+              --on-behalf-of "${REQUESTER}" \
+              --gpgsign \
+              --input /tmp/payload.json \
+              --output /tmp/signature.bin
+
+            echo "Signature (base64):"
+            base64 /tmp/signature.bin
+          done
+        done
 
         # Clean up keytab
         rm -f /tmp/signing.keytab
