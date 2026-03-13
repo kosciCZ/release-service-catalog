@@ -89,7 +89,7 @@ spec:
         base64 --decode /etc/secret/keytab > /tmp/signing.keytab
 
         # List available keys
-        rh-signing-client --keytab /tmp/signing.keytab --list-keys
+        rh-signing-client-stage --keytab /tmp/signing.keytab --list-keys
 
         echo "References: ${REFERENCES}"
         echo "Manifest digests: ${MANIFEST_DIGESTS}"
@@ -123,7 +123,7 @@ spec:
             echo "${payload}" > /tmp/payload.json
             cat /tmp/payload.json
 
-            rh-signing-client \
+            rh-signing-client-stage \
               --keytab /tmp/signing.keytab \
               --key-name "${sig_key}" \
               --on-behalf-of "${REQUESTER}" \
