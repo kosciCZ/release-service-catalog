@@ -343,6 +343,7 @@ spec:
 
               ${requestType} \
                 --pipeline "${request}" \
+                --service-account release-service-account \
                 -p pipeline_image="${pipeline_image}" \
                 -p references="${references_batch}" \
                 -p signing_key_names="${keyset_spaces}" \
@@ -377,6 +378,7 @@ spec:
 
             ${requestType} \
               --pipeline "${request}" \
+              --service-account release-service-account \
               -p pipeline_image="${pipeline_image}" \
               -p references="${references_batch[*]}" \
               -p signing_key_names="${keyset_spaces}" \
