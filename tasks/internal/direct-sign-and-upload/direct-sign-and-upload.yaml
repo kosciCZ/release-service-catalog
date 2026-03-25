@@ -112,7 +112,7 @@ spec:
             printf '"optional":{"creator":"konflux"}}' >> /tmp/payload.json
             cat /tmp/payload.json
 
-            rh-signing-client-stage \
+            rh-signing-client \
               --keytab /tmp/signing.keytab \
               --key-name "${sig_key}" \
               --on-behalf-of "${REQUESTER}" \
