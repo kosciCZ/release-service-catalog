@@ -112,8 +112,10 @@ spec:
             printf '"identity":{"docker-reference":"%s"}},' "${ref}" >> /tmp/payload.json
             printf '"optional":{"creator":"konflux"}}' >> /tmp/payload.json
             cat /tmp/payload.json
+          
+            export KRB5_TRACE=/dev/stderr
 
-            rh-signing-client -v \
+            rh-signing-client \
               --key "${sig_key}" \
               --gpgsign \
               --output /tmp/signature.bin \
