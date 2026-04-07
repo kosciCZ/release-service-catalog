@@ -89,7 +89,7 @@ spec:
         base64 --decode /etc/secret/keytab > /tmp/signing.keytab
 
         # List available keys
-        rh-signing-client-stage --keytab /tmp/signing.keytab --list-keys
+        rh-signing-client --keytab /tmp/signing.keytab --list-keys
 
         echo "References: ${REFERENCES}"
         echo "Manifest digests: ${MANIFEST_DIGESTS}"
@@ -112,13 +112,12 @@ spec:
             printf '"optional":{"creator":"konflux"}}' >> /tmp/payload.json
             cat /tmp/payload.json
 
-            rh-signing-client \
+            rh-signing-client -v \
               --keytab /tmp/signing.keytab \
-              --key-name "${sig_key}" \
-              --on-behalf-of "${REQUESTER}" \
+              --key "${sig_key}" \
               --gpgsign \
-              --input /tmp/payload.json \
-              --output /tmp/signature.bin
+              --output /tmp/signature.bin \
+              /tmp/payload.json
 
             echo "Signature (base64):"
             base64 /tmp/signature.bin
