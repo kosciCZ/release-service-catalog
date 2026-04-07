@@ -80,7 +80,7 @@ spec:
         #!/bin/bash
         set -ex
 
-        configMapJson=$(kubectl get "cm/${config_map_name:?}" -ojson)
+        configMapJson=$(kubectl get "cm/${config_map_name:?}" -ojson) 
         PYXIS_URL=$(jq -er '.data.PYXIS_URL' <<< "${configMapJson}")
         PYXIS_SSL_CERT_FILE_NAME=$(jq -er '.data.PYXIS_SSL_CERT_FILE_NAME' <<< "${configMapJson}")
         PYXIS_SSL_CERT_SECRET_NAME=$(jq -er '.data.PYXIS_SSL_CERT_SECRET_NAME' <<< "${configMapJson}")
