@@ -85,12 +85,13 @@ spec:
         #!/usr/bin/env bash
         set -ex
 
-        # Decode keytab
+        # Authenticate with keytab
         base64 --decode /etc/secret/keytab > /tmp/signing.keytab
+        kinit -kt /tmp/signing.keytab "konflux-release-signing-stage@IPA.REDHAT.COM"
 
         # List available keys
-        rh-signing-client --keytab /tmp/signing.keytab --list-keys
-
+        rh-signing-client --list-keys
+  
         echo "References: ${REFERENCES}"
         echo "Manifest digests: ${MANIFEST_DIGESTS}"
         echo "Signing key names: ${SIG_KEY_NAMES}"
@@ -113,16 +114,13 @@ spec:
             cat /tmp/payload.json
 
             rh-signing-client -v \
-              --keytab /tmp/signing.keytab \
               --key "${sig_key}" \
               --gpgsign \
               --output /tmp/signature.bin \
+              --onbehalfof "${REQUESTER}" \
               /tmp/payload.json
 
             echo "Signature (base64):"
             base64 /tmp/signature.bin
           done
         done
-
-        # Clean up keytab
-        rm -f /tmp/signing.keytab
