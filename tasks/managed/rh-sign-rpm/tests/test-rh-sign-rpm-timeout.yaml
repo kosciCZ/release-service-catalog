@@ -178,8 +178,6 @@ spec:
           value: "main"
         - name: snapshotBuildId
           value: "test-timeout-build"
-        - name: unsignedRpmsDomain
-          value: "rok-storage"
         - name: signedRpmsDomain
           value: "rok-storage"
         - name: pipelineImage

@@ -74,14 +74,15 @@ spec:
     - name: taskGitRevision
       type: string
       description: The revision in the taskGitUrl repo to be used
-    - name: unsignedRpmsDomain
-      type: string
-      description: The domain to use for pulling unsigned RPMs
-      default: rok-storage
+    # - name: unsignedRpmsDomain
+    #   type: string
+    #   description: The domain to use for pulling unsigned RPMs
+    #   default: rok-storage
     - name: signedRpmsDomain
       type: string
       description: The domain to use for pushing signed RPMs
-      default: rok-storage
+      # default: rok-storage
+      default: konflux-direct-signing-test
     - name: unsignedRpmsSubpath
       type: string
       description: |
@@ -95,16 +96,17 @@ spec:
         (e.g., "rpms-signed" results in domain/repo/rpms-signed).
         Set to empty string for no subpath
       default: "rpms-signed"
-    - name: signedRpmsUploadSubpath
-      type: string
-      description: |
-        Subpath for uploading signed RPMs within the signing pipeline.
-        Set to empty string for no subpath
-      default: ""
+    # - name: signedRpmsUploadSubpath
+    #   type: string
+    #   description: |
+    #     Subpath for uploading signed RPMs within the signing pipeline.
+    #     Set to empty string for no subpath
+    #   default: ""
     - name: pipelineImage
       type: string
       description: Container image to use for the signing pipeline
-      default: "quay.io/konflux-ci/signing:latest"
+      # default: "quay.io/konflux-ci/signing:latest"
+      default: "quay.io/araszka/signing:latest-fix"
     - name: signingRepo
       type: string
       description: Git repository URL containing the signing tasks
@@ -112,7 +114,7 @@ spec:
     - name: signingRevision
       type: string
       description: Git revision (branch, tag, or commit) in the signing repository
-      default: "main"
+      default: "350aba48d7ce3c2dd52d0e50efa75cfd5e22cc48"
     - name: signPipeline
       type: string
       description: Name of the internal pipeline to use for RPM signing
@@ -181,32 +183,52 @@ spec:
         cat > $(params.dataDir)/$(params.artifactsJsonPath) <<'EOF'
         {
           "artifacts": {
-            "samba-gpupdate-4.23.4-1.el9.noarch.rpm": {
+            "test-build1/pulp_results.json": {
               "labels": {
-                "arch": "noarch",
-                "date": "2026-03-19 13:05:28",
-                "build_id": "manual-upload",
-                "namespace": "rplesnik-test"
+                "arch": "",
+                "date": "2026-04-28 17:33:14",
+                "build_id": "test-build1",
+                "namespace": "rok-test"
               },
-              "url": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/rpms/Packages/s/samba-gpupdate-4.23.4-1.el9.noarch.rpm",
-              "sha256": "9a142bf84f0e5429e49679cf21ab2f6f73e158500a8a498cfd31263695df42e8"
+              "url": "https://packages.redhat.com/api/pulp-content/konflux-direct-signing-test/test-build1/logs/pulp_results.json",
+              "sha256": "c114c7ed9381bbffdd15798021ec12b29b1b8ec2131de1abf43a619dc4744da1"
             },
             "samba-4.23.4-1.el9.src.rpm": {
               "labels": {
                 "arch": "src",
-                "date": "2026-03-19 13:05:28",
-                "build_id": "manual-upload",
-                "namespace": "rplesnik-test"
+                "date": "2026-04-28 17:33:14",
+                "build_id": "test-build1",
+                "namespace": "rok-test"
               },
-              "url": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/rpms/Packages/s/samba-4.23.4-1.el9.src.rpm",
+              "url": "https://packages.redhat.com/api/pulp-content/konflux-direct-signing-test/test-build1/rpms/Packages/s/samba-4.23.4-1.el9.src.rpm",
               "sha256": "105dc0785c7d10cfe1e757b7443a61d999061381ec310f177c8da8dbc7cde30e"
+            },
+            "bash-completion-2.11-5.el9.noarch.rpm": {
+              "labels": {
+                "arch": "noarch",
+                "date": "2026-04-28 17:33:14",
+                "build_id": "test-build1",
+                "namespace": "rok-test"
+              },
+              "url": "https://packages.redhat.com/api/pulp-content/konflux-direct-signing-test/test-build1/rpms/Packages/b/bash-completion-2.11-5.el9.noarch.rpm",
+              "sha256": "3a949c0111df035a47dd93bc043a5e0bf778f992e1620ad4ab47dbe29e9d112e"
+            },
+            "samba-gpupdate-4.23.4-1.el9.noarch.rpm": {
+              "labels": {
+                "arch": "noarch",
+                "date": "2026-04-28 17:33:14",
+                "build_id": "test-build1",
+                "namespace": "rok-test"
+              },
+              "url": "https://packages.redhat.com/api/pulp-content/konflux-direct-signing-test/test-build1/rpms/Packages/s/samba-gpupdate-4.23.4-1.el9.noarch.rpm",
+              "sha256": "9a142bf84f0e5429e49679cf21ab2f6f73e158500a8a498cfd31263695df42e8"
             }
           },
           "distributions": {
-            "rpms": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/rpms/",
-            "logs": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/logs/",
-            "sbom": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/sbom/",
-            "artifacts": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/artifacts/"
+            "rpms": "https://packages.redhat.com/api/pulp-content/konflux-direct-signing-test/test-build1/rpms/",
+            "logs": "https://packages.redhat.com/api/pulp-content/konflux-direct-signing-test/test-build1/logs/",
+            "sbom": "https://packages.redhat.com/api/pulp-content/konflux-direct-signing-test/test-build1/sbom/",
+            "artifacts": "https://packages.redhat.com/api/pulp-content/konflux-direct-signing-test/test-build1/artifacts/"
           }
         }
         EOF
@@ -274,146 +296,40 @@ spec:
         SIGNING_ALIAS=$(jq --exit-status -r '.signOptions.signKeyAlias.key' "${DATA_FILE}")
         ARTIFACT_STORAGE_SECRET=$(jq --exit-status -r '.signOptions.artifactStorageSecret // "signing-artifact-storage-preprod"' "${DATA_FILE}")
 
-
         # Calculate timeouts - pipeline timeout is requestTimeout + 5 minutes for overhead
         requestTimeout=$(params.requestTimeout)
         pipelineTimeoutSeconds=$((requestTimeout+300))
         pipelineTimeout=$(date -u -d @"${pipelineTimeoutSeconds}" +"%Hh%Mm%Ss")
         taskTimeout=$(date -u -d @"${requestTimeout}" +"%Hh%Mm%Ss")
 
-        # Determine repos to process and whether to filter artifacts
-        FILTER_ARTIFACTS="false"
-        HAS_NOARCH="false"
-        if [ -n "$(params.snapshotBuildId)" ]; then
-            # Use provided snapshotBuildId as the repo
-            REPOS="$(params.snapshotBuildId)"
-            echo "Using provided snapshotBuildId as repo: ${REPOS}"
-        else
-            # Extract unique architectures from artifacts.json
-            # Filter out "noarch" - noarch RPMs are uploaded to all arch repos by push-rpms-to-pulp
-            # and should be signed as part of actual arch repos, not a separate "noarch" repo
-            ALL_ARCHS=$(jq -r '.artifacts | .[].labels.arch // empty' "${ARTIFACTS_JSON_FILE}" | sort -u)
+        ARTIFACT_JSON=$(base64 -w0 < "${ARTIFACTS_JSON_FILE}")
 
-            if echo "${ALL_ARCHS}" | grep -q "^noarch$"; then
-                HAS_NOARCH="true"
-            fi
+        echo "Creating internal-request for RPM signing (pipeline: $(params.signPipeline))..."
 
-            # Start with arch-specific repos from artifacts (exclude noarch and source - they are handled separately)
-            REPOS=$(echo "${ALL_ARCHS}" | grep -v "^noarch$" | grep -v "^source$" || true)
-            echo "Extracted repos from artifacts.json architectures: ${REPOS:-<none>}"
+        # Disable command echoing to prevent logging sensitive parameters
+        set +x
+        internal-request \
+          --pipeline "$(params.signPipeline)" \
+          -p pipeline_image="$(params.pipelineImage)" \
+          -p artifact_json="${ARTIFACT_JSON}" \
+          -p kerberos_principal="${KERBEROS_PRINCIPAL}" \
+          -p kerberos_keytab="${KERBEROS_KEYTAB}" \
+          -p kerberos_keytab_secret="${KERBEROS_KEYTAB_SECRET}" \
+          -p signing_alias="${SIGNING_ALIAS}" \
+          -p artifact_storage_secret="${ARTIFACT_STORAGE_SECRET}" \
+          -p destination_artifact_storage_domain="$(params.signedRpmsDomain)" \
+          -p requester="$(params.requester)" \
+          -p force="false" \
+          -p taskGitUrl="$(params.signingRepo)" \
+          -p taskGitRevision="$(params.signingRevision)" \
+          -l ${PIPELINERUN_LABEL}="$(params.pipelineRunUid)" \
+          -t "$(params.requestTimeout)" \
+          --service-account "$(params.signPipelineServiceAccount)" \
+          --pipeline-timeout "${pipelineTimeout}" \
+          --task-timeout "$taskTimeout" \
+          -s true
 
-            # When noarch RPMs exist, use distributions to determine all repos that have content
-            # This reflects where push-rpms-to-pulp actually uploaded noarch RPMs
-            if [ "${HAS_NOARCH}" = "true" ]; then
-                echo "noarch RPMs found - adding all arch repos from distributions"
-                DIST_REPOS=$(jq -r '.distributions | keys[]' "${ARTIFACTS_JSON_FILE}" \
-                  | grep -v "^source$" || true)
-                for dist_repo in ${DIST_REPOS}; do
-                    if ! echo "${REPOS}" | grep -q "^${dist_repo}$"; then
-                        if [ -z "${REPOS}" ]; then
-                            REPOS="${dist_repo}"
-                        else
-                            REPOS="${REPOS}"$'\n'"${dist_repo}"
-                        fi
-                        echo "  Adding repo from distributions: ${dist_repo}"
-                    fi
-                done
-            fi
-
-            # Add source if present in artifacts
-            if echo "${ALL_ARCHS}" | grep -q "^source$"; then
-                REPOS="${REPOS}"$'\n'"source"
-            fi
-
-            if [ -z "${REPOS}" ]; then
-                echo "No architectures found in artifacts.json"
-                exit 1
-            fi
-            echo "Final repos to process: ${REPOS}"
-            FILTER_ARTIFACTS="true"
-        fi
-
-        # Process each repo
-        for REPO in ${REPOS}; do
-            echo "Creating internal-request for RPM signing (pipeline: $(params.signPipeline), repo: ${REPO})..."
-
-            # Determine which artifacts.json to use
-            if [ "${FILTER_ARTIFACTS}" = "true" ]; then
-                # Create filtered artifacts.json for this architecture
-                FILTERED_ARTIFACTS_FILE="$(params.dataDir)/artifacts-${REPO}.json"
-                if [ "${HAS_NOARCH}" = "true" ] && [ "${REPO}" != "source" ]; then
-                    # Include both arch-specific AND noarch artifacts in each arch repo
-                    # noarch RPMs exist in all arch repos, so each needs to be signed
-                    jq --arg arch "${REPO}" '{
-                      artifacts: (.artifacts | to_entries
-                        | map(select(.value.labels.arch == $arch or .value.labels.arch == "noarch"))
-                        | from_entries),
-                      distributions: {($arch): .distributions[$arch]}
-                    }' "${ARTIFACTS_JSON_FILE}" > "${FILTERED_ARTIFACTS_FILE}"
-                    echo "Created filtered artifacts.json for ${REPO} (including noarch)"
-                else
-                    jq --arg arch "${REPO}" '{
-                      artifacts: (.artifacts | to_entries | map(select(.value.labels.arch == $arch))
-                        | from_entries),
-                      distributions: {($arch): .distributions[$arch]}
-                    }' "${ARTIFACTS_JSON_FILE}" > "${FILTERED_ARTIFACTS_FILE}"
-                    echo "Created filtered artifacts.json for ${REPO}"
-                fi
-                ARTIFACT_JSON_PATH="${FILTERED_ARTIFACTS_FILE}"
-            else
-                ARTIFACT_JSON_PATH="${ARTIFACTS_JSON_FILE}"
-            fi
-            ARTIFACT_JSON=$(base64 -w0 < "${ARTIFACT_JSON_PATH}")
-
-            # Build unsigned RPMs location path
-            if [ -n "$(params.unsignedRpmsSubpath)" ]; then
-                UNSIGNED_LOCATION="$(params.unsignedRpmsDomain)/${REPO}/$(params.unsignedRpmsSubpath)"
-            else
-                UNSIGNED_LOCATION="$(params.unsignedRpmsDomain)/${REPO}"
-            fi
-
-            # Build signed RPMs destination path
-            if [ -n "$(params.signedRpmsSubpath)" ]; then
-                SIGNED_DESTINATION="$(params.signedRpmsDomain)/${REPO}/$(params.signedRpmsSubpath)"
-            else
-                SIGNED_DESTINATION="$(params.signedRpmsDomain)/${REPO}"
-            fi
-
-            echo "Unsigned RPMs location: ${UNSIGNED_LOCATION}"
-            echo "Signed RPMs destination: ${SIGNED_DESTINATION}"
-
-            # Disable command echoing to prevent logging sensitive parameters
-            set +x
-            internal-request \
-              --pipeline "$(params.signPipeline)" \
-              -p image="$(params.pipelineImage)" \
-              -p artifact_json="${ARTIFACT_JSON}" \
-              -p ociStorage="$(params.ociStorage)" \
-              -p kerberos_principal="${KERBEROS_PRINCIPAL}" \
-              -p kerberos_keytab="${KERBEROS_KEYTAB}" \
-              -p kerberos_keytab_secret="${KERBEROS_KEYTAB_SECRET}" \
-              -p signing_alias="${SIGNING_ALIAS}" \
-              -p artifact_storage_secret="${ARTIFACT_STORAGE_SECRET}" \
-              -p unsigned_rpms_location="${UNSIGNED_LOCATION}" \
-              -p signed_rpms_destination="${SIGNED_DESTINATION}" \
-              -p source_artifact_storage_domain="$(params.unsignedRpmsDomain)" \
-              -p destination_artifact_storage_domain="$(params.signedRpmsDomain)" \
-              -p requester="$(params.requester)" \
-              -p force="false" \
-              -p signed_rpms_upload_subpath="$(params.signedRpmsUploadSubpath)" \
-              -p taskGitUrl="$(params.signingRepo)" \
-              -p taskGitRevision="$(params.signingRevision)" \
-              -l ${PIPELINERUN_LABEL}="$(params.pipelineRunUid)" \
-              -t "$(params.requestTimeout)" \
-              --service-account "$(params.signPipelineServiceAccount)" \
-              --pipeline-timeout "${pipelineTimeout}" \
-              --task-timeout "$taskTimeout" \
-              -s true
-
-            echo "RPM signing request completed for repo: ${REPO}"
-        done
-
-        echo "All RPM signing requests completed"
+        echo "RPM signing request completed"
     - name: create-trusted-artifact
       computeResources:
         limits:
