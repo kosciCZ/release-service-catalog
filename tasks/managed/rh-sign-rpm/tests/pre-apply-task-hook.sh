@@ -27,11 +27,7 @@ cat > "/tmp/rpm-signing-pipeline.json" << EOF
         "type": "string"
       },
       {
-        "name": "component_name",
-        "type": "string"
-      },
-      {
-        "name": "component_artifact",
+        "name": "artifact_json",
         "type": "string"
       },
       {
@@ -39,23 +35,31 @@ cat > "/tmp/rpm-signing-pipeline.json" << EOF
         "type": "string"
       },
       {
-        "name": "principal",
+        "name": "kerberos_principal",
         "type": "string"
       },
       {
-        "name": "keytab_file",
+        "name": "kerberos_keytab",
         "type": "string"
       },
       {
-        "name": "secret_name",
+        "name": "kerberos_keytab_secret",
         "type": "string"
       },
       {
-        "name": "sign_key_alias",
+        "name": "signing_alias",
         "type": "string"
       },
       {
         "name": "requester",
+        "type": "string"
+      },
+      {
+        "name": "force",
+        "type": "string"
+      },
+      {
+        "name": "signed_rpms_upload_subpath",
         "type": "string"
       },
       {
@@ -75,7 +79,7 @@ cat > "/tmp/rpm-signing-pipeline.json" << EOF
             {
               "image": "bash:3.2",
               "name": "sign",
-              "script": "echo Signing RPM for component \$(params.component_name)"
+              "script": "echo Signing RPMs"
             }
           ]
         }

@@ -8,42 +8,33 @@ metadata:
     tekton.dev/tags: sign-rpm
 spec:
   description: |-
-    Tekton task to create internalrequests to sign RPMs.
-    Processes artifacts.json to determine repositories and creates signing requests.
-    See README.md and artifacts.json in this directory for examples and documentation.
+    Tekton task to create internalrequests to sign RPMs
   params:
     - name: snapshotPath
       type: string
       description: |
         Path to the JSON file of the mapped Snapshot spec in the data workspace
-      default: "snapshot.json"
     - name: dataPath
       type: string
       description: |
         Path to the JSON file of the merged data to use in the data workspace
-      default: "data.json"
     - name: snapshotBuildId
       type: string
       description: |
         Pulp repository name to use for RPM signing. If provided, this value is used directly.
-        If empty, repositories are determined dynamically from the architectures in artifacts.json.
-      default: "123456"
+        If empty, repositories are determined dynamically from the architectures in artifacts.json
+      default: ""
     - name: releasePlanAdmissionPath
       description: Path to the JSON string of the releasePlanAdmission in the data workspace
       type: string
-      default: "rpa.json"
     - name: artifactsJsonPath
       type: string
       description: |
-        Path to the artifacts.json file in the data workspace (pulp-tool format with RPM metadata).
-        This is a relative path within the dataDir (default: /var/workdir/release/).
-        At runtime, the file will be read from: $(params.dataDir)/$(params.artifactsJsonPath)
-        See artifacts.json in this directory for an example format.
-      default: "artifacts.json"
+        Path to the artifacts.json file in the data workspace (pulp-tool format with RPM metadata)
+      default: ""
     - name: requester
       type: string
       description: Name of the user that requested the signing, for auditing purposes
-      default: "test-user"
     - name: requestTimeout
       type: string
       default: "1800"
@@ -51,7 +42,6 @@ spec:
     - name: pipelineRunUid
       type: string
       description: The uid of the current pipelineRun. Used as a label value when creating internal requests
-      default: "test-pipeline-run-uid"
     - name: ociStorage
       description: The OCI repository where the Trusted Artifacts are stored
       type: string
@@ -81,11 +71,9 @@ spec:
     - name: taskGitUrl
       type: string
       description: The url to the git repo where the release-service-catalog tasks and stepactions to be used are stored
-      default: "https://github.com/konflux-ci/release-service-catalog.git"
     - name: taskGitRevision
       type: string
       description: The revision in the taskGitUrl repo to be used
-      default: "main"
     - name: unsignedRpmsDomain
       type: string
       description: The domain to use for pulling unsigned RPMs
@@ -98,21 +86,41 @@ spec:
       type: string
       description: |
         Subpath appended after the repo for unsigned RPMs location (e.g., "rpms" results in domain/repo/rpms).
-        Set to empty string for no subpath.
+        Set to empty string for no subpath
       default: "rpms"
     - name: signedRpmsSubpath
       type: string
       description: |
         Subpath appended after the repo for signed RPMs destination
         (e.g., "rpms-signed" results in domain/repo/rpms-signed).
-        Set to empty string for no subpath.
+        Set to empty string for no subpath
       default: "rpms-signed"
     - name: signedRpmsUploadSubpath
       type: string
       description: |
         Subpath for uploading signed RPMs within the signing pipeline.
-        Set to empty string for no subpath.
+        Set to empty string for no subpath
       default: ""
+    - name: pipelineImage
+      type: string
+      description: Container image to use for the signing pipeline
+      default: "quay.io/konflux-ci/signing:latest"
+    - name: signingRepo
+      type: string
+      description: Git repository URL containing the signing tasks
+      default: "https://gitlab.cee.redhat.com/signing/signing.git"
+    - name: signingRevision
+      type: string
+      description: Git revision (branch, tag, or commit) in the signing repository
+      default: "main"
+    - name: signPipeline
+      type: string
+      description: Name of the internal pipeline to use for RPM signing
+      default: "direct-rpm-signing"
+    - name: signPipelineServiceAccount
+      type: string
+      description: Service account to use for the signing pipeline
+      default: "signing-pipeline-sa"
   results:
     - name: sourceDataArtifact
       type: string
@@ -156,61 +164,8 @@ spec:
           value: $(params.dataDir)
         - name: sourceDataArtifact
           value: $(params.sourceDataArtifact)
-    - name: create-test-files
-      image: quay.io/konflux-ci/release-service-utils:d08bdfa3733a7c75d5334aaa77b7aa46fbace00b
-      computeResources:
-        limits:
-          memory: 64Mi
-          cpu: 30m
-        requests:
-          memory: 64Mi
-          cpu: 30m
-      script: |
-        #!/usr/bin/env bash
-        set -e
-
-        echo "Creating test artifacts.json file..."
-        cat > $(params.dataDir)/$(params.artifactsJsonPath) <<'EOF'
-        {
-          "artifacts": {
-            "samba-gpupdate-4.23.4-1.el9.noarch.rpm": {
-              "labels": {
-                "arch": "noarch",
-                "date": "2026-03-19 13:05:28",
-                "build_id": "manual-upload",
-                "namespace": "rplesnik-test"
-              },
-              "url": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/rpms/Packages/s/samba-gpupdate-4.23.4-1.el9.noarch.rpm",
-              "sha256": "9a142bf84f0e5429e49679cf21ab2f6f73e158500a8a498cfd31263695df42e8"
-            },
-            "samba-4.23.4-1.el9.src.rpm": {
-              "labels": {
-                "arch": "src",
-                "date": "2026-03-19 13:05:28",
-                "build_id": "manual-upload",
-                "namespace": "rplesnik-test"
-              },
-              "url": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/rpms/Packages/s/samba-4.23.4-1.el9.src.rpm",
-              "sha256": "105dc0785c7d10cfe1e757b7443a61d999061381ec310f177c8da8dbc7cde30e"
-            }
-          },
-          "distributions": {
-            "rpms": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/rpms/",
-            "logs": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/logs/",
-            "sbom": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/sbom/",
-            "artifacts": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/artifacts/"
-          }
-        }
-        EOF
-
-        echo "All test files created successfully!"
-        echo "Listing files in $(params.dataDir):"
-        ls -lh $(params.dataDir)/
-        echo ""
-        echo "Content of artifacts.json:"
-        cat $(params.dataDir)/$(params.artifactsJsonPath)
     - name: rh-sign-rpm
-      image: quay.io/konflux-ci/release-service-utils:d08bdfa3733a7c75d5334aaa77b7aa46fbace00b
+      image: quay.io/konflux-ci/release-service-utils@sha256:5546fa78d3c88d7b6a2e8cff8902f7757f00541d0bbaf113b9f293133894afa3
       computeResources:
         limits:
           memory: 2Gi
@@ -227,10 +182,6 @@ spec:
           value: $(params.dataDir)/$(params.artifactsJsonPath)
       script: |
         #!/usr/bin/env bash
-        # This script processes RPM signing requests based on artifacts.json
-        # The artifacts.json file contains RPM metadata including architecture information
-        # and is used to determine which repositories need signing.
-        # Example format: see artifacts.json in tasks/managed/rh-sign-rpm/ directory
         set -e
 
         if [ ! -f "${SNAPSHOT_SPEC_FILE}" ] ; then
@@ -249,10 +200,14 @@ spec:
             exit 1
         fi
 
-        # if [ -z "$(params.artifactsJsonPath)" ] || [ ! -f "${ARTIFACTS_JSON_FILE}" ]; then
-        #     echo "No valid artifacts.json file was provided."
-        #     exit 1
-        # fi
+        # Validate artifacts.json if needed for dynamic architecture detection
+        if [ -z "$(params.snapshotBuildId)" ]; then
+            if [ -z "$(params.artifactsJsonPath)" ] || [ ! -f "${ARTIFACTS_JSON_FILE}" ]; then
+                echo "Error: snapshotBuildId is empty, so artifacts.json is required for dynamic architecture detection"
+                echo "Please provide either snapshotBuildId or a valid artifactsJsonPath"
+                exit 1
+            fi
+        fi
 
         set -x
 
@@ -262,9 +217,15 @@ spec:
         KERBEROS_PRINCIPAL=$(jq --exit-status -r '.signOptions.signKeytab.principal' "${DATA_FILE}")
         KERBEROS_KEYTAB=$(jq --exit-status -r '.signOptions.signKeytab.name' "${DATA_FILE}")
         KERBEROS_KEYTAB_SECRET=$(jq --exit-status -r '.signOptions.signKeytab.secret' "${DATA_FILE}")
-        PIPELINE_IMAGE=$(jq --exit-status -r '.signOptions.signPipelineImage' "${DATA_FILE}")
         SIGNING_ALIAS=$(jq --exit-status -r '.signOptions.signKeyAlias.key' "${DATA_FILE}")
         ARTIFACT_STORAGE_SECRET=$(jq --exit-status -r '.signOptions.artifactStorageSecret // "signing-artifact-storage-preprod"' "${DATA_FILE}")
+
+
+        # Calculate timeouts - pipeline timeout is requestTimeout + 5 minutes for overhead
+        requestTimeout=$(params.requestTimeout)
+        pipelineTimeoutSeconds=$((requestTimeout+300))
+        pipelineTimeout=$(date -u -d @"${pipelineTimeoutSeconds}" +"%Hh%Mm%Ss")
+        taskTimeout=$(date -u -d @"${requestTimeout}" +"%Hh%Mm%Ss")
 
         # Determine repos to process and whether to filter artifacts
         FILTER_ARTIFACTS="false"
@@ -283,8 +244,8 @@ spec:
                 HAS_NOARCH="true"
             fi
 
-            # Start with arch-specific repos from artifacts
-            REPOS=$(echo "${ALL_ARCHS}" | grep -v "^noarch$" || true)
+            # Start with arch-specific repos from artifacts (exclude noarch and source - they are handled separately)
+            REPOS=$(echo "${ALL_ARCHS}" | grep -v "^noarch$" | grep -v "^source$" || true)
             echo "Extracted repos from artifacts.json architectures: ${REPOS:-<none>}"
 
             # When noarch RPMs exist, use distributions to determine all repos that have content
@@ -320,7 +281,7 @@ spec:
 
         # Process each repo
         for REPO in ${REPOS}; do
-            echo "Creating internal-request for RPM signing (repo: ${REPO})..."
+            echo "Creating internal-request for RPM signing (pipeline: $(params.signPipeline), repo: ${REPO})..."
 
             # Determine which artifacts.json to use
             if [ "${FILTER_ARTIFACTS}" = "true" ]; then
@@ -348,7 +309,7 @@ spec:
             else
                 ARTIFACT_JSON_PATH="${ARTIFACTS_JSON_FILE}"
             fi
-            ARTIFACT_JSON=$(cat "${ARTIFACT_JSON_PATH}" | base64 -w0)
+            ARTIFACT_JSON=$(base64 -w0 < "${ARTIFACT_JSON_PATH}")
 
             # Build unsigned RPMs location path
             if [ -n "$(params.unsignedRpmsSubpath)" ]; then
@@ -367,9 +328,11 @@ spec:
             echo "Unsigned RPMs location: ${UNSIGNED_LOCATION}"
             echo "Signed RPMs destination: ${SIGNED_DESTINATION}"
 
+            # Disable command echoing to prevent logging sensitive parameters
+            set +x
             internal-request \
-              --pipeline "direct-rpm-signing" \
-              -p pipeline_image="quay.io/konflux-ci/signing:latest" \
+              --pipeline "$(params.signPipeline)" \
+              -p image="$(params.pipelineImage)" \
               -p artifact_json="${ARTIFACT_JSON}" \
               -p ociStorage="$(params.ociStorage)" \
               -p kerberos_principal="${KERBEROS_PRINCIPAL}" \
@@ -384,13 +347,13 @@ spec:
               -p requester="$(params.requester)" \
               -p force="false" \
               -p signed_rpms_upload_subpath="$(params.signedRpmsUploadSubpath)" \
-              -p taskGitUrl="https://gitlab.cee.redhat.com/signing/signing.git" \
-              -p taskGitRevision="ISV-7017" \
+              -p taskGitUrl="$(params.signingRepo)" \
+              -p taskGitRevision="$(params.signingRevision)" \
               -l ${PIPELINERUN_LABEL}="$(params.pipelineRunUid)" \
               -t "$(params.requestTimeout)" \
-              --service-account "signing-pipeline-sa" \
-              --pipeline-timeout "0h30m0s" \
-              --task-timeout "0h25m0s" \
+              --service-account "$(params.signPipelineServiceAccount)" \
+              --pipeline-timeout "${pipelineTimeout}" \
+              --task-timeout "$taskTimeout" \
               -s true
 
             echo "RPM signing request completed for repo: ${REPO}"

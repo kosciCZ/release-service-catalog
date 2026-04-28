@@ -55,6 +55,8 @@ spec:
               set -eux
 
               mkdir -p "$(params.dataDir)/$(context.pipelineRun.uid)"
+              mkdir -p "$(params.dataDir)/$(context.pipelineRun.uid)/artifacts"
+
               cat > "$(params.dataDir)/$(context.pipelineRun.uid)/snapshot_spec.json" << EOF
               {
                 "application": "myapp",
@@ -77,10 +79,10 @@ spec:
                 "signOptions": {
                   "signKeytab": {
                     "principal": "test-principal@REDHAT.COM",
-                    "name": "test-keytab",
+                    "name": "expected-ir-failure",
                     "secret": "test-keytab-secret"
                   },
-                  "signPipelineImage": "quay.io/redhat-isv/operator-pipelines-images:released",
+                  "signPipelineImage": "quay.io/konflux-ci/signing:latest",
                   "signKeyAlias": {
                     "key": "devkey1"
                   }
@@ -112,8 +114,23 @@ spec:
                         }
                       ]
                     },
-                    "serviceAccountName": "release-service-account"
+                    "serviceAccountName": "signing-pipeline-sa"
                   }
+                }
+              }
+              EOF
+
+              cat > "$(params.dataDir)/$(context.pipelineRun.uid)/artifacts/artifacts.json" << EOF
+              {
+                "artifacts": {
+                  "test-rpm-1.0-1.el9.x86_64.rpm": {
+                    "labels": {"arch": "x86_64"},
+                    "url": "https://pulp.example.com/pulp/content/test/x86_64/test-rpm-1.0-1.el9.x86_64.rpm",
+                    "sha256": "abc123def456"
+                  }
+                },
+                "distributions": {
+                  "x86_64": "https://pulp.example.com/pulp/content/test/x86_64/"
                 }
               }
               EOF
@@ -135,8 +152,6 @@ spec:
           value: testuser-rpm-failure
         - name: requestTimeout
           value: "1800"
-        - name: concurrentLimit
-          value: "16"
         - name: pipelineRunUid
           value: $(context.pipelineRun.uid)
         - name: snapshotPath
@@ -145,6 +160,8 @@ spec:
           value: $(context.pipelineRun.uid)/data.json
         - name: releasePlanAdmissionPath
           value: $(context.pipelineRun.uid)/release_plan_admission.json
+        - name: artifactsJsonPath
+          value: $(context.pipelineRun.uid)/artifacts/artifacts.json
         - name: ociStorage
           value: $(params.ociStorage)
         - name: orasOptions
@@ -159,6 +176,16 @@ spec:
           value: "http://localhost"
         - name: taskGitRevision
           value: "main"
+        - name: snapshotBuildId
+          value: "test-failure-build"
+        - name: unsignedRpmsDomain
+          value: "rok-storage"
+        - name: signedRpmsDomain
+          value: "rok-storage"
+        - name: pipelineImage
+          value: "quay.io/konflux-ci/signing:latest"
+        - name: signPipeline
+          value: "rpm-signing-pipeline"
       runAfter:
         - setup
   finally:
@@ -169,6 +196,7 @@ spec:
       taskSpec:
         params:
           - name: taskStatus
+            type: string
         steps:
           - name: check-result
             image: quay.io/konflux-ci/release-service-utils@sha256:5546fa78d3c88d7b6a2e8cff8902f7757f00541d0bbaf113b9f293133894afa3

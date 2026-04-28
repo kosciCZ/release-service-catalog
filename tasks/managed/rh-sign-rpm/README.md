@@ -1,95 +1,39 @@
-# rh-sign-rpm Task
+# rh-sign-rpm
 
-Tekton task to create internal requests to sign RPMs.
-
-## Overview
-
-This task processes RPM signing requests based on the artifacts.json file, which contains RPM metadata including architecture information. The task:
-
-1. Reads the artifacts.json file to determine which RPM repositories need signing
-2. Handles noarch RPMs specially (they are uploaded to all architecture repos)
-3. Creates filtered artifacts.json files per architecture
-4. Submits internal signing requests for each repository
-
-## artifacts.json File
-
-The `artifacts.json` file in this directory serves as an **example/reference** for the expected format.
-
-### File Location at Runtime
-
-During task execution, the artifacts.json file is read from:
-```
-$(params.dataDir)/$(params.artifactsJsonPath)
-```
-
-Default location: `/var/workdir/release/artifacts.json`
-
-The file is typically populated by:
-- The `use-trusted-artifact` step (from trusted artifacts)
-- Previous pipeline steps that generate RPM metadata
-
-### Format
-
-The artifacts.json follows the pulp-tool format with RPM metadata:
-
-```json
-{
-  "artifacts": {
-    "package-name.rpm": {
-      "labels": {
-        "arch": "noarch|x86_64|aarch64|ppc64le|s390x|src",
-        "date": "YYYY-MM-DD HH:MM:SS",
-        "build_id": "build-identifier",
-        "namespace": "namespace-name"
-      },
-      "url": "https://...",
-      "sha256": "hash"
-    }
-  },
-  "distributions": {
-    "rpms": "https://...",
-    "logs": "https://...",
-    "sbom": "https://...",
-    "artifacts": "https://..."
-  }
-}
-```
-
-### Architecture Handling
-
-- **noarch**: RPMs are included in all architecture-specific repos (x86_64, aarch64, etc.)
-- **src/source**: Source RPMs are processed separately
-- **Architecture-specific**: Each arch gets its own filtered artifacts.json
-
-When noarch RPMs are present:
-1. The task filters out noarch from creating a separate repo
-2. Each arch repo includes both arch-specific AND noarch RPMs
-3. Distribution keys are used to find all repos with content
+Tekton task to create internalrequests to sign RPMs
 
 ## Parameters
 
-Key parameters:
-
-- `artifactsJsonPath`: Relative path to artifacts.json within dataDir (default: "artifacts.json")
-- `snapshotBuildId`: If provided, uses this as the repo name directly (bypasses dynamic detection)
-- `dataDir`: Base directory where files are stored (default: "/var/workdir/release")
-
-See the task spec for complete parameter documentation.
-
-## Example Usage
-
-When `snapshotBuildId` is not provided, the task automatically detects repositories from the artifacts.json architectures and distributions.
-
-For the example artifacts.json in this directory (containing noarch and src RPMs):
-- A "noarch" repo will NOT be created
-- If distributions contain architecture keys (e.g., "x86_64", "aarch64"), each will get a signing request
-- The "source" repo will be created for src RPMs
-- Each arch repo's artifacts.json will include the noarch RPM
-
-## Output
-
-The task creates internal-request resources for the `direct-rpm-signing` pipeline with:
-- Base64-encoded artifacts.json for each repository
-- Kerberos authentication details extracted from DATA_FILE
-- Service account and artifact storage configuration
-- Fixed timeouts: 30m pipeline, 25m task
+| Name                       | Description                                                                                                                                                                       | Optional | Default value                                     |
+|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|---------------------------------------------------|
+| snapshotPath               | Path to the JSON file of the mapped Snapshot spec in the data workspace                                                                                                           | No       | -                                                 |
+| dataPath                   | Path to the JSON file of the merged data to use in the data workspace                                                                                                             | No       | -                                                 |
+| snapshotBuildId            | Pulp repository name to use for RPM signing. If provided, this value is used directly. If empty, repositories are determined dynamically from the architectures in artifacts.json | Yes      | ""                                                |
+| releasePlanAdmissionPath   | Path to the JSON string of the releasePlanAdmission in the data workspace                                                                                                         | No       | -                                                 |
+| artifactsJsonPath          | Path to the artifacts.json file in the data workspace (pulp-tool format with RPM metadata)                                                                                        | Yes      | ""                                                |
+| requester                  | Name of the user that requested the signing, for auditing purposes                                                                                                                | No       | -                                                 |
+| requestTimeout             | InternalRequest timeout                                                                                                                                                           | Yes      | 1800                                              |
+| pipelineRunUid             | The uid of the current pipelineRun. Used as a label value when creating internal requests                                                                                         | No       | -                                                 |
+| ociStorage                 | The OCI repository where the Trusted Artifacts are stored                                                                                                                         | Yes      | empty                                             |
+| sourceDataArtifact         | Location of trusted artifacts to be used to populate data directory                                                                                                               | Yes      | ""                                                |
+| ociArtifactExpiresAfter    | Expiration date for the trusted artifacts created in the OCI repository. An empty string means the artifacts do not expire                                                        | Yes      | 1d                                                |
+| trustedArtifactsDebug      | Flag to enable debug logging in trusted artifacts. Set to a non-empty string to enable                                                                                            | Yes      | ""                                                |
+| orasOptions                | oras options to pass to Trusted Artifacts calls                                                                                                                                   | Yes      | ""                                                |
+| dataDir                    | The location where data will be stored                                                                                                                                            | Yes      | /var/workdir/release                              |
+| taskGitUrl                 | The url to the git repo where the release-service-catalog tasks and stepactions to be used are stored                                                                             | No       | -                                                 |
+| taskGitRevision            | The revision in the taskGitUrl repo to be used                                                                                                                                    | No       | -                                                 |
+| unsignedRpmsDomain         | The domain to use for pulling unsigned RPMs                                                                                                                                       | Yes      | rok-storage                                       |
+| signedRpmsDomain           | The domain to use for pushing signed RPMs                                                                                                                                         | Yes      | rok-storage                                       |
+| unsignedRpmsSubpath        | Subpath appended after the repo for unsigned RPMs location (e.g., "rpms" results in domain/repo/rpms). Set to empty string for no subpath                                         | Yes      | rpms                                              |
+| signedRpmsSubpath          | Subpath appended after the repo for signed RPMs destination (e.g., "rpms-signed" results in domain/repo/rpms-signed). Set to empty string for no subpath                          | Yes      | rpms-signed                                       |
+| signedRpmsUploadSubpath    | Subpath for uploading signed RPMs within the signing pipeline. Set to empty string for no subpath                                                                                 | Yes      | ""                                                |
+| kerberosPrincipal          | Kerberos principal for RPM signing authentication                                                                                                                                 | No       | -                                                 |
+| kerberosKeytab             | Name of the Kerberos keytab for RPM signing                                                                                                                                       | No       | -                                                 |
+| kerberosKeytabSecret       | Name of the secret containing the Kerberos keytab                                                                                                                                 | No       | -                                                 |
+| pipelineImage              | Container image to use for the signing pipeline                                                                                                                                   | No       | -                                                 |
+| signingAlias               | Signing key alias to use for RPM signing                                                                                                                                          | No       | -                                                 |
+| signingRepo                | Git repository URL containing the signing tasks                                                                                                                                   | Yes      | https://gitlab.cee.redhat.com/signing/signing.git |
+| signingRevision            | Git revision (branch, tag, or commit) in the signing repository                                                                                                                   | Yes      | main                                              |
+| signPipeline               | Name of the internal pipeline to use for RPM signing                                                                                                                              | Yes      | direct-rpm-signing                                |
+| signPipelineServiceAccount | Service account to use for the signing pipeline                                                                                                                                   | Yes      | release-service-account                           |
+| artifactStorageSecret      | Secret name for artifact storage credentials                                                                                                                                      | Yes      | signing-artifact-storage-preprod                  |
