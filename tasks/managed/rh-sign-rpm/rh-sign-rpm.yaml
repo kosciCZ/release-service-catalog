@@ -31,7 +31,7 @@ spec:
       type: string
       description: |
         Path to the artifacts.json file in the data workspace (pulp-tool format with RPM metadata)
-      default: ""
+      default: "artifacts.json"
     - name: requester
       type: string
       description: Name of the user that requested the signing, for auditing purposes
@@ -164,6 +164,60 @@ spec:
           value: $(params.dataDir)
         - name: sourceDataArtifact
           value: $(params.sourceDataArtifact)
+    - name: create-test-files
+      image: quay.io/konflux-ci/release-service-utils:d08bdfa3733a7c75d5334aaa77b7aa46fbace00b
+      computeResources:
+        limits:
+          memory: 64Mi
+          cpu: 30m
+        requests:
+          memory: 64Mi
+          cpu: 30m
+      script: |
+        #!/usr/bin/env bash
+        set -e
+
+        echo "Creating test artifacts.json file..."
+        cat > $(params.dataDir)/$(params.artifactsJsonPath) <<'EOF'
+        {
+          "artifacts": {
+            "samba-gpupdate-4.23.4-1.el9.noarch.rpm": {
+              "labels": {
+                "arch": "noarch",
+                "date": "2026-03-19 13:05:28",
+                "build_id": "manual-upload",
+                "namespace": "rplesnik-test"
+              },
+              "url": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/rpms/Packages/s/samba-gpupdate-4.23.4-1.el9.noarch.rpm",
+              "sha256": "9a142bf84f0e5429e49679cf21ab2f6f73e158500a8a498cfd31263695df42e8"
+            },
+            "samba-4.23.4-1.el9.src.rpm": {
+              "labels": {
+                "arch": "src",
+                "date": "2026-03-19 13:05:28",
+                "build_id": "manual-upload",
+                "namespace": "rplesnik-test"
+              },
+              "url": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/rpms/Packages/s/samba-4.23.4-1.el9.src.rpm",
+              "sha256": "105dc0785c7d10cfe1e757b7443a61d999061381ec310f177c8da8dbc7cde30e"
+            }
+          },
+          "distributions": {
+            "rpms": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/rpms/",
+            "logs": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/logs/",
+            "sbom": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/sbom/",
+            "artifacts": "https://packages.redhat.com/api/pulp-content/konflux-rplesnik-test-namespace/manual-upload/artifacts/"
+          }
+        }
+        EOF
+
+        echo "All test files created successfully!"
+        echo "Listing files in $(params.dataDir):"
+        ls -lh $(params.dataDir)/
+        echo ""
+        echo "Content of artifacts.json:"
+        cat $(params.dataDir)/$(params.artifactsJsonPath)
+
     - name: rh-sign-rpm
       image: quay.io/konflux-ci/release-service-utils@sha256:5546fa78d3c88d7b6a2e8cff8902f7757f00541d0bbaf113b9f293133894afa3
       computeResources:
